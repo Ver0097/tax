@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>税务数据导入系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 30px;
+            font-size: 32px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .import-section {
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .import-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .import-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .import-info h3 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .import-info p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-name {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+        }
+        
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>税务数据导入系统</h1>
+        
+        <div class="import-section">
+            <h2>数据导入</h2>
+            
+            <div class="import-card">
+                <div class="import-info">
+                    <h3>导入未补税数据</h3>
+                    <p>导入Excel文件第二sheet页的数据，数据从第3行开始读取</p>
+                </div>
+                <div>
+                    <input type="file" id="file1" class="file-input" accept=".xlsx,.xls">
+                    <button class="btn btn-primary" onclick="selectFile('file1')">
+                        导入未补税数据
+                    </button>
+                </div>
+            </div>
+            <div class="file-name" id="fileName1"></div>
+            
+            <div class="progress-container" id="progress1">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill1"></div>
+                </div>
+                <div class="progress-text" id="progressText1">上传中...</div>
+            </div>
+            
+            <div class="message" id="message1"></div>
+        </div>
+    </div>
+    
+    <script>
+        function selectFile(inputId) {
+            document.getElementById(inputId).click();
+        }
+        
+        document.getElementById('file1').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('fileName1').textContent = '已选择文件: ' + file.name;
+            uploadFile(file, 1);
+        });
+        
+        function uploadFile(file, index) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('importType', 'unpaid_tax');
+            
+            const progressContainer = document.getElementById('progress' + index);
+            const progressFill = document.getElementById('progressFill' + index);
+            const progressText = document.getElementById('progressText' + index);
+            const message = document.getElementById('message' + index);
+            const btn = document.querySelectorAll('.btn-primary')[index - 1];
+            
+            progressContainer.style.display = 'block';
+            message.style.display = 'none';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>导入中...';
+            
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressFill.style.width = percent + '%';
+                    progressText.textContent = '上传中... ' + percent + '%';
+                }
+            });
+            
+            xhr.addEventListener('load', function() {
+                progressContainer.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '导入未补税数据';
+                
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        message.className = 'message success';
+                        message.textContent = '导入成功！共导入 ' + response.data + ' 条数据';
+                    } else {
+                        message.className = 'message error';
+                        message.textContent = '导入失败：' + response.message;
+                    }
+                } else {
+                    message.className = 'message error';
+                    message.textContent = '导入失败：服务器错误';
+                }
+                message.style.display = 'block';
+            });
+            
+            xhr.addEventListener('error', function() {
+                progressContainer.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '导入未补税数据';
+                message.className = 'message error';
+                message.textContent = '导入失败：网络错误';
+                message.style.display = 'block';
+            });
+            
+            xhr.open('POST', '/api/import/excel');
+            xhr.send(formData);
+        }
+    </script>
+</body>
+</html>
