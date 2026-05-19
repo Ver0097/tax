@@ -2,6 +2,7 @@ package com.ganen.tax.service;
 
 import com.ganen.tax.entity.YukouInfo;
 import org.apache.poi.openxml4j.opc.OPCPackage;
+import org.apache.poi.openxml4j.opc.PackageAccess;
 import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.util.CellAddress;
@@ -15,6 +16,7 @@ import org.apache.poi.xssf.usermodel.XSSFComment;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 
+import java.io.File;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -37,36 +39,39 @@ public class YukouExcelSaxParser {
     
     private final DataFormatter formatter = new DataFormatter();
     
-    public void parse(InputStream inputStream, Consumer<List<YukouInfo>> batchConsumer, int batchSize) throws Exception {
+    public void parse(File excelFile, Consumer<List<YukouInfo>> batchConsumer, int batchSize) throws Exception {
+        System.setProperty("jdk.xml.entityExpansionLimit", "0");
         ZipSecureFile.setMinInflateRatio(0);
-        IOUtils.setByteArrayMaxOverride(500 * 1024 * 1024);
-        
-        OPCPackage opcPackage = OPCPackage.open(inputStream);
+        ZipSecureFile.setMaxEntrySize(Long.MAX_VALUE);
+        ZipSecureFile.setMaxTextSize(Long.MAX_VALUE);
+        IOUtils.setByteArrayMaxOverride(Integer.MAX_VALUE);
+
+        OPCPackage opcPackage = OPCPackage.open(excelFile, PackageAccess.READ);
         XSSFReader xssfReader = new XSSFReader(opcPackage);
-        
+
         SharedStrings sharedStrings = xssfReader.getSharedStringsTable();
         StylesTable stylesTable = xssfReader.getStylesTable();
-        
+
         XSSFReader.SheetIterator sheetIterator = (XSSFReader.SheetIterator) xssfReader.getSheetsData();
         int sheetIndex = 0;
-        
+
         while (sheetIterator.hasNext()) {
-            InputStream sheetStream = sheetIterator.next();
-            
-            SheetHandler sheetHandler = new SheetHandler(batchConsumer, batchSize, sheetIndex);
-            
-            XMLReader xmlReader = XMLHelper.newXMLReader();
-            XSSFSheetXMLHandler xssfSheetXMLHandler = new XSSFSheetXMLHandler(
-                    stylesTable, sharedStrings, sheetHandler, formatter, false);
-            xmlReader.setContentHandler(xssfSheetXMLHandler);
-            
-            InputSource inputSource = new InputSource(sheetStream);
-            xmlReader.parse(inputSource);
-            
-            sheetStream.close();
-            sheetIndex++;
+            try (InputStream sheetStream = sheetIterator.next()) {
+                SheetHandler sheetHandler = new SheetHandler(batchConsumer, batchSize, sheetIndex);
+
+                XMLReader xmlReader = XMLHelper.newXMLReader();
+                XSSFSheetXMLHandler xssfSheetXMLHandler = new XSSFSheetXMLHandler(
+                        stylesTable, sharedStrings, sheetHandler, formatter, false);
+                xmlReader.setContentHandler(xssfSheetXMLHandler);
+
+                InputSource inputSource = new InputSource(sheetStream);
+                xmlReader.parse(inputSource);
+
+                sheetHandler.flush();
+                sheetIndex++;
+            }
         }
-        
+
         opcPackage.close();
     }
     
@@ -105,6 +110,13 @@ public class YukouExcelSaxParser {
                     batchConsumer.accept(new ArrayList<>(currentBatch));
                     currentBatch.clear();
                 }
+            }
+        }
+
+        public void flush() {
+            if (!currentBatch.isEmpty()) {
+                batchConsumer.accept(new ArrayList<>(currentBatch));
+                currentBatch.clear();
             }
         }
         

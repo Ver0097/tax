@@ -4,23 +4,30 @@ server:
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://rm-2ze33km15gw01e24zwo.mysql.rds.aliyuncs.com:3306/tax_verify?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
-    username: xxxx
-    password: xxxx
-    
+    url: jdbc:mysql://rm-2ze33km15gw01e24zwo.mysql.rds.aliyuncs.com:3306/tax_verify?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true&useServerPrepStmts=false&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048
+    username: xxx
+    password: xxx
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 50MB
+      max-file-size: 500MB
+      max-request-size: 500MB
 
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
   global-config:
     db-config:
       id-type: auto
 
 logging:
   level:
-    com.ganen.tax: debug
+    com.ganen.tax: info
