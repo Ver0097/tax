@@ -1,9 +1,7 @@
 package com.ganen.tax.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ganen.tax.dto.ImportProgress;
 import com.ganen.tax.entity.YukouInfo;
-import com.ganen.tax.mapper.YukouInfoMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,9 +23,10 @@ public class YukouImportService {
     private static final Logger logger = LoggerFactory.getLogger(YukouImportService.class);
     
     private static final int BATCH_SIZE = 5000;
+    private static final int INSERT_BATCH_SIZE = 1000;
     
     @Autowired
-    private YukouInfoMapper yukouInfoMapper;
+    private YukouInfoService yukouInfoService;
     
     private final Map<String, ImportProgress> progressMap = new ConcurrentHashMap<>();
     
@@ -56,18 +55,22 @@ public class YukouImportService {
             parser.parse(inputStream, batch -> {
                 processedCount.addAndGet(batch.size());
                 
+                List<YukouInfo> validList = new ArrayList<>();
                 for (YukouInfo info : batch) {
-                    if (info.getIdCard() == null || info.getIdCard().isEmpty()) {
+                    if (info.getIdCard() != null && !info.getIdCard().isEmpty()) {
+                        validList.add(info);
+                    } else {
                         failCount.incrementAndGet();
-                        continue;
                     }
-                    
+                }
+                
+                if (!validList.isEmpty()) {
                     try {
-                        yukouInfoMapper.insert(info);
-                        successCount.incrementAndGet();
+                        yukouInfoService.saveBatch(validList, INSERT_BATCH_SIZE);
+                        successCount.addAndGet(validList.size());
                     } catch (Exception e) {
-                        logger.error("插入数据失败, 身份证: {}", info.getIdCard(), e);
-                        failCount.incrementAndGet();
+                        logger.error("批量插入数据失败", e);
+                        failCount.addAndGet(validList.size());
                     }
                 }
                 
