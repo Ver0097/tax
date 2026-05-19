@@ -28,6 +28,7 @@ public class YukouExcelSaxParser {
     private static final int COL_MERCHANT = 0;
     private static final int COL_TAX_AREA = 2;
     private static final int COL_TAX_AMOUNT = 6;
+    private static final int COL_IMPORT_FLAG = 7;
     private static final int COL_PAYEE = 14;
     private static final int COL_ID_CARD = 15;
     private static final int COL_PHONE = 16;
@@ -139,11 +140,21 @@ public class YukouExcelSaxParser {
         }
         
         private YukouInfo parseRowData() {
+            String importFlag = getValue(COL_IMPORT_FLAG);
+            if (!"是".equals(importFlag)) {
+                return null;
+            }
+
+            BigDecimal taxAmount = parseBigDecimal(getValue(COL_TAX_AMOUNT));
+            if (taxAmount.compareTo(BigDecimal.ZERO) == 0) {
+                return null;
+            }
+
             YukouInfo yukouInfo = new YukouInfo();
             
             yukouInfo.setMerchant(getValue(COL_MERCHANT));
             yukouInfo.setTaxArea(getValue(COL_TAX_AREA));
-            yukouInfo.setTaxAmount(parseBigDecimal(getValue(COL_TAX_AMOUNT)));
+            yukouInfo.setTaxAmount(taxAmount);
             yukouInfo.setPayee(getValue(COL_PAYEE));
             yukouInfo.setIdCard(getValue(COL_ID_CARD));
             yukouInfo.setPhone(getValue(COL_PHONE));
