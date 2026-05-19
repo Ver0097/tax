@@ -147,6 +147,12 @@
             border: 1px solid #f5c6cb;
         }
         
+        .message.info {
+            background: #cce5ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+        
         .loading {
             display: inline-block;
             width: 20px;
@@ -161,6 +167,30 @@
         
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 6px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-item .label {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .stat-item .value {
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -193,6 +223,43 @@
             </div>
             
             <div class="message" id="message1"></div>
+            
+            <div class="import-card">
+                <div class="import-info">
+                    <h3>导入平台预扣数据</h3>
+                    <p>导入百万级Excel数据，支持两个sheet页，数据从第4行开始读取（异步处理）</p>
+                </div>
+                <div>
+                    <input type="file" id="file2" class="file-input" accept=".xlsx">
+                    <button class="btn btn-primary" onclick="selectFile('file2')">
+                        导入平台预扣数据
+                    </button>
+                </div>
+            </div>
+            <div class="file-name" id="fileName2"></div>
+            
+            <div class="progress-container" id="progress2">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill2"></div>
+                </div>
+                <div class="progress-text" id="progressText2">上传中...</div>
+                <div class="stats" id="stats2" style="display: none;">
+                    <div class="stat-item">
+                        <div class="label">已处理</div>
+                        <div class="value" id="processed2">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">成功</div>
+                        <div class="value" id="success2">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">失败</div>
+                        <div class="value" id="fail2">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="message" id="message2"></div>
         </div>
     </div>
     
@@ -206,19 +273,27 @@
             if (!file) return;
             
             document.getElementById('fileName1').textContent = '已选择文件: ' + file.name;
-            uploadFile(file, 1);
+            uploadFile1(file);
         });
         
-        function uploadFile(file, index) {
+        document.getElementById('file2').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('fileName2').textContent = '已选择文件: ' + file.name;
+            uploadFile2(file);
+        });
+        
+        function uploadFile1(file) {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('importType', 'unpaid_tax');
             
-            const progressContainer = document.getElementById('progress' + index);
-            const progressFill = document.getElementById('progressFill' + index);
-            const progressText = document.getElementById('progressText' + index);
-            const message = document.getElementById('message' + index);
-            const btn = document.querySelectorAll('.btn-primary')[index - 1];
+            const progressContainer = document.getElementById('progress1');
+            const progressFill = document.getElementById('progressFill1');
+            const progressText = document.getElementById('progressText1');
+            const message = document.getElementById('message1');
+            const btn = document.querySelectorAll('.btn-primary')[0];
             
             progressContainer.style.display = 'block';
             message.style.display = 'none';
@@ -267,6 +342,130 @@
             
             xhr.open('POST', '/api/import/excel');
             xhr.send(formData);
+        }
+        
+        function uploadFile2(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const progressContainer = document.getElementById('progress2');
+            const progressFill = document.getElementById('progressFill2');
+            const progressText = document.getElementById('progressText2');
+            const stats = document.getElementById('stats2');
+            const message = document.getElementById('message2');
+            const btn = document.querySelectorAll('.btn-primary')[1];
+            
+            progressContainer.style.display = 'block';
+            stats.style.display = 'none';
+            message.style.display = 'none';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>上传中...';
+            
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressFill.style.width = percent + '%';
+                    progressText.textContent = '上传中... ' + percent + '%';
+                }
+            });
+            
+            xhr.addEventListener('load', function() {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        const taskId = response.data;
+                        btn.innerHTML = '<span class="loading"></span>导入中...';
+                        stats.style.display = 'flex';
+                        progressText.textContent = '正在处理数据...';
+                        message.className = 'message info';
+                        message.textContent = '文件已上传，正在后台处理数据...';
+                        message.style.display = 'block';
+                        
+                        pollProgress(taskId, btn, progressFill, progressText, stats, message);
+                    } else {
+                        progressContainer.style.display = 'none';
+                        btn.disabled = false;
+                        btn.innerHTML = '导入平台预扣数据';
+                        message.className = 'message error';
+                        message.textContent = '启动导入失败：' + response.message;
+                        message.style.display = 'block';
+                    }
+                } else {
+                    progressContainer.style.display = 'none';
+                    btn.disabled = false;
+                    btn.innerHTML = '导入平台预扣数据';
+                    message.className = 'message error';
+                    message.textContent = '上传失败：服务器错误';
+                    message.style.display = 'block';
+                }
+            });
+            
+            xhr.addEventListener('error', function() {
+                progressContainer.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '导入平台预扣数据';
+                message.className = 'message error';
+                message.textContent = '上传失败：网络错误';
+                message.style.display = 'block';
+            });
+            
+            xhr.open('POST', '/api/import/yukou');
+            xhr.send(formData);
+        }
+        
+        function pollProgress(taskId, btn, progressFill, progressText, stats, message) {
+            const processedEl = document.getElementById('processed2');
+            const successEl = document.getElementById('success2');
+            const failEl = document.getElementById('fail2');
+            
+            const interval = setInterval(function() {
+                fetch('/api/import/progress/' + taskId)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const progress = data.data;
+                            
+                            processedEl.textContent = progress.processedRows;
+                            successEl.textContent = progress.successCount;
+                            failEl.textContent = progress.failCount;
+                            
+                            if (progress.totalRows > 0) {
+                                const percent = Math.round((progress.processedRows / progress.totalRows) * 100);
+                                progressFill.style.width = percent + '%';
+                            }
+                            
+                            progressText.textContent = progress.message;
+                            
+                            if (progress.status === 'completed') {
+                                clearInterval(interval);
+                                btn.disabled = false;
+                                btn.innerHTML = '导入平台预扣数据';
+                                message.className = 'message success';
+                                message.textContent = progress.message;
+                                message.style.display = 'block';
+                            } else if (progress.status === 'error') {
+                                clearInterval(interval);
+                                btn.disabled = false;
+                                btn.innerHTML = '导入平台预扣数据';
+                                message.className = 'message error';
+                                message.textContent = progress.message;
+                                message.style.display = 'block';
+                            }
+                        } else {
+                            clearInterval(interval);
+                            btn.disabled = false;
+                            btn.innerHTML = '导入平台预扣数据';
+                            message.className = 'message error';
+                            message.textContent = '获取进度失败：' + data.message;
+                            message.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('获取进度失败:', error);
+                    });
+            }, 2000);
         }
     </script>
 </body>
