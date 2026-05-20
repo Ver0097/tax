@@ -275,6 +275,21 @@
             </div>
             <div class="file-name" id="fileName3"></div>
             <div class="message" id="message3"></div>
+
+            <div class="import-card">
+                <div class="import-info">
+                    <h3>导入平台预扣数据-京灵</h3>
+                    <p>导入京灵预扣Excel数据（单sheet页，数据从第2行开始）</p>
+                </div>
+                <div>
+                    <input type="file" id="file4" class="file-input" accept=".xlsx">
+                    <button class="btn btn-primary" onclick="selectFile('file4')">
+                        导入平台预扣数据-京灵
+                    </button>
+                </div>
+            </div>
+            <div class="file-name" id="fileName4"></div>
+            <div class="message" id="message4"></div>
         </div>
     </div>
     
@@ -305,6 +320,14 @@
 
             document.getElementById('fileName3').textContent = '已选择文件: ' + file.name;
             uploadFile3(file);
+        });
+
+        document.getElementById('file4').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName4').textContent = '已选择文件: ' + file.name;
+            uploadFile4(file);
         });
         
         function uploadFile1(file) {
@@ -533,6 +556,51 @@
             });
 
             xhr.open('POST', '/api/import/yukou-qkg');
+            xhr.send(formData);
+        }
+
+        function uploadFile4(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const message = document.getElementById('message4');
+            const btn = document.querySelectorAll('.btn-primary')[3];
+
+            message.style.display = 'none';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>导入中...';
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.addEventListener('load', function() {
+                btn.disabled = false;
+                btn.innerHTML = '导入平台预扣数据-京灵';
+
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        message.className = 'message success';
+                        message.textContent = '导入成功！共导入 ' + response.data + ' 条数据';
+                    } else {
+                        message.className = 'message error';
+                        message.textContent = '导入失败：' + response.message;
+                    }
+                } else {
+                    message.className = 'message error';
+                    message.textContent = '导入失败：服务器错误';
+                }
+                message.style.display = 'block';
+            });
+
+            xhr.addEventListener('error', function() {
+                btn.disabled = false;
+                btn.innerHTML = '导入平台预扣数据-京灵';
+                message.className = 'message error';
+                message.textContent = '导入失败：网络错误';
+                message.style.display = 'block';
+            });
+
+            xhr.open('POST', '/api/import/yukou-jl');
             xhr.send(formData);
         }
     </script>

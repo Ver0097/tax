@@ -4,6 +4,7 @@ import com.ganen.tax.common.Result;
 import com.ganen.tax.dto.ImportProgress;
 import com.ganen.tax.service.ExcelImportService;
 import com.ganen.tax.service.YukouImportService;
+import com.ganen.tax.service.YukouJlImportService;
 import com.ganen.tax.service.YukouQkgImportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -21,6 +22,9 @@ public class ImportController {
     
     @Autowired
     private YukouQkgImportService yukouQkgImportService;
+
+    @Autowired
+    private YukouJlImportService yukouJlImportService;
     
     @GetMapping("/")
     public String index() {
@@ -83,6 +87,26 @@ public class ImportController {
             }
 
             int count = yukouQkgImportService.importQkg(file);
+            return Result.success("导入成功", count);
+        } catch (Exception e) {
+            return Result.error("导入失败：" + e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/import/yukou-jl")
+    @ResponseBody
+    public Result<Integer> importYukouJl(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return Result.error("请选择要导入的文件");
+            }
+
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || !fileName.endsWith(".xlsx")) {
+                return Result.error("请选择Excel文件（.xlsx格式）");
+            }
+
+            int count = yukouJlImportService.importJl(file);
             return Result.success("导入成功", count);
         } catch (Exception e) {
             return Result.error("导入失败：" + e.getMessage());
