@@ -4,6 +4,23 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ganen.tax.mapper.TaxMapper">
 
+    <sql id="TaxWhere">
+        <where>
+            <if test="userName != null and userName != ''">
+                AND user_name LIKE CONCAT('%', #{userName}, '%')
+            </if>
+            <if test="idCard != null and idCard != ''">
+                AND id_card LIKE CONCAT('%', #{idCard}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <select id="countTaxList" resultType="long">
+        SELECT COUNT(*)
+        FROM tax
+        <include refid="TaxWhere"/>
+    </select>
+
     <select id="queryTaxList" resultType="com.ganen.tax.entity.Tax">
         SELECT
             id,
@@ -25,14 +42,8 @@
             create_time,
             update_time
         FROM tax
-        <where>
-            <if test="userName != null and userName != ''">
-                AND user_name LIKE CONCAT('%', #{userName}, '%')
-            </if>
-            <if test="idCard != null and idCard != ''">
-                AND id_card LIKE CONCAT('%', #{idCard}, '%')
-            </if>
-        </where>
+        <include refid="TaxWhere"/>
         ORDER BY id DESC
+        LIMIT #{offset}, #{pageSize}
     </select>
 </mapper>

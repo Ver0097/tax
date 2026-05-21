@@ -93,6 +93,33 @@
             overflow-x: auto;
         }
 
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .pagination-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .pagination-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -153,10 +180,21 @@
                 <tbody id="taxTableBody"></tbody>
             </table>
         </div>
+        <div class="pagination">
+            <div class="pagination-info" id="paginationInfo">共 0 条，第 1 / 1 页</div>
+            <div class="pagination-actions">
+                <button class="btn" id="prevPageBtn" onclick="changePage(-1)">上一页</button>
+                <button class="btn" id="nextPageBtn" onclick="changePage(1)">下一页</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
+    let currentPageNo = 1;
+    const pageSize = 10;
+    let totalPages = 1;
+
     function goHome() {
         window.location.href = '/';
     }
@@ -177,13 +215,14 @@
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ userName: userName, idCard: idCard })
+            body: JSON.stringify({ userName: userName, idCard: idCard, pageNo: currentPageNo, pageSize: pageSize })
         })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     document.getElementById('taxToolMessage').style.display = 'none';
-                    renderTaxTable(data.data || []);
+                    renderTaxTable(data.data.records || []);
+                    updatePagination(data.data);
                 } else {
                     showTaxToolMessage('查询失败：' + data.message);
                 }
@@ -219,6 +258,46 @@
                 '</tr>';
         }).join('');
     }
+
+    function updatePagination(pageData) {
+        const total = pageData.total || 0;
+        const pageNo = pageData.pageNo || 1;
+        const currentPageSize = pageData.pageSize || pageSize;
+        totalPages = Math.max(1, Math.ceil(total / currentPageSize));
+        currentPageNo = pageNo;
+
+        document.getElementById('paginationInfo').textContent = '共 ' + total + ' 条，第 ' + pageNo + ' / ' + totalPages + ' 页';
+        document.getElementById('prevPageBtn').disabled = pageNo <= 1;
+        document.getElementById('nextPageBtn').disabled = pageNo >= totalPages;
+    }
+
+    function changePage(step) {
+        const targetPage = currentPageNo + step;
+        if (targetPage < 1 || targetPage > totalPages) {
+            return;
+        }
+        currentPageNo = targetPage;
+        loadTaxList();
+    }
+
+    document.getElementById('searchUserName').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            currentPageNo = 1;
+            loadTaxList();
+        }
+    });
+
+    document.getElementById('searchIdCard').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            currentPageNo = 1;
+            loadTaxList();
+        }
+    });
+
+    const originalLoadTaxList = loadTaxList;
+    loadTaxList = function() {
+        originalLoadTaxList();
+    };
 
     loadTaxList();
 </script>

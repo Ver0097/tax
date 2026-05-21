@@ -2,6 +2,7 @@ package com.ganen.tax.controller;
 
 import com.ganen.tax.common.Result;
 import com.ganen.tax.dto.ImportProgress;
+import com.ganen.tax.dto.PageResult;
 import com.ganen.tax.dto.TaxQueryRequest;
 import com.ganen.tax.service.ExcelImportService;
 import com.ganen.tax.service.TaxNewImportService;
@@ -107,7 +108,7 @@ public class ImportController {
 
     @PostMapping("/api/tax/query")
     @ResponseBody
-    public Result<List<Tax>> queryTaxList(@RequestBody(required = false) TaxQueryRequest request) {
+    public Result<PageResult<Tax>> queryTaxList(@RequestBody(required = false) TaxQueryRequest request) {
         try {
             return Result.success(taxService.queryTaxList(request));
         } catch (Exception e) {

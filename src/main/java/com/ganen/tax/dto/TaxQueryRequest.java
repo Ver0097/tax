@@ -8,4 +8,8 @@ public class TaxQueryRequest {
     private String userName;
 
     private String idCard;
+
+    private Long pageNo;
+
+    private Long pageSize;
 }

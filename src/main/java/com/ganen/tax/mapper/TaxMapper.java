@@ -45,8 +45,10 @@ public interface TaxMapper extends BaseMapper<Tax> {
             """)
     int calculateRecoverInfo();
 
-    @Select("SELECT COUNT(*) FROM tax")
-    long countAll();
+    long countTaxList(@Param("userName") String userName, @Param("idCard") String idCard);
 
-    List<Tax> queryTaxList(@Param("userName") String userName, @Param("idCard") String idCard);
+    List<Tax> queryTaxList(@Param("userName") String userName,
+                           @Param("idCard") String idCard,
+                           @Param("offset") long offset,
+                           @Param("pageSize") long pageSize);
 }

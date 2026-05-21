@@ -1,5 +1,6 @@
 package com.ganen.tax.service.impl;
 
+import com.ganen.tax.dto.PageResult;
 import com.ganen.tax.dto.TaxQueryRequest;
 import com.ganen.tax.entity.Tax;
 import com.ganen.tax.mapper.TaxMapper;
@@ -23,9 +24,14 @@ public class TaxServiceImpl implements TaxService {
     }
 
     @Override
-    public List<Tax> queryTaxList(TaxQueryRequest request) {
+    public PageResult<Tax> queryTaxList(TaxQueryRequest request) {
         String userName = request == null ? null : request.getUserName();
         String idCard = request == null ? null : request.getIdCard();
-        return taxMapper.queryTaxList(userName, idCard);
+        long pageNo = request == null || request.getPageNo() == null || request.getPageNo() < 1 ? 1 : request.getPageNo();
+        long pageSize = request == null || request.getPageSize() == null || request.getPageSize() < 1 ? 10 : request.getPageSize();
+        long offset = (pageNo - 1) * pageSize;
+        long total = taxMapper.countTaxList(userName, idCard);
+        List<Tax> records = taxMapper.queryTaxList(userName, idCard, offset, pageSize);
+        return PageResult.of(total, pageNo, pageSize, records);
     }
 }
