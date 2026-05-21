@@ -3,6 +3,7 @@ package com.ganen.tax.controller;
 import com.ganen.tax.common.Result;
 import com.ganen.tax.dto.ImportProgress;
 import com.ganen.tax.service.ExcelImportService;
+import com.ganen.tax.service.TaxNewImportService;
 import com.ganen.tax.service.YijiaoImportService;
 import com.ganen.tax.service.YukouImportService;
 import com.ganen.tax.service.YukouJlImportService;
@@ -17,6 +18,9 @@ public class ImportController {
     
     @Autowired
     private ExcelImportService excelImportService;
+
+    @Autowired
+    private TaxNewImportService taxNewImportService;
     
     @Autowired
     private YukouImportService yukouImportService;
@@ -51,6 +55,26 @@ public class ImportController {
             }
             
             int count = excelImportService.importUnpaidTaxData(file);
+            return Result.success("导入成功", count);
+        } catch (Exception e) {
+            return Result.error("导入失败：" + e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/import/new-tax")
+    @ResponseBody
+    public Result<Integer> importNewTax(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return Result.error("请选择要导入的文件");
+            }
+
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls"))) {
+                return Result.error("请选择Excel文件（.xlsx或.xls格式）");
+            }
+
+            int count = taxNewImportService.importNewUnpaidTaxData(file);
             return Result.success("导入成功", count);
         } catch (Exception e) {
             return Result.error("导入失败：" + e.getMessage());

@@ -223,6 +223,29 @@
             </div>
             
             <div class="message" id="message1"></div>
+
+            <div class="import-card">
+                <div class="import-info">
+                    <h3>导入新未补税数据</h3>
+                    <p>导入Excel文件第二sheet页的数据，数据从第3行开始读取到最后</p>
+                </div>
+                <div>
+                    <input type="file" id="file6" class="file-input" accept=".xlsx,.xls">
+                    <button class="btn btn-primary" onclick="selectFile('file6')">
+                        导入新未补税数据
+                    </button>
+                </div>
+            </div>
+            <div class="file-name" id="fileName6"></div>
+
+            <div class="progress-container" id="progress6">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill6"></div>
+                </div>
+                <div class="progress-text" id="progressText6">上传中...</div>
+            </div>
+
+            <div class="message" id="message6"></div>
             
             <div class="import-card">
                 <div class="import-info">
@@ -373,6 +396,14 @@
 
             document.getElementById('fileName5').textContent = '已选择文件: ' + file.name;
             uploadFile5(file);
+        });
+
+        document.getElementById('file6').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName6').textContent = '已选择文件: ' + file.name;
+            uploadFile6(file);
         });
         
         function uploadFile1(file) {
@@ -728,6 +759,65 @@
             });
 
             xhr.open('POST', '/api/import/yijiao');
+            xhr.send(formData);
+        }
+
+        function uploadFile6(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const progressContainer = document.getElementById('progress6');
+            const progressFill = document.getElementById('progressFill6');
+            const progressText = document.getElementById('progressText6');
+            const message = document.getElementById('message6');
+            const btn = document.querySelectorAll('.btn-primary')[5];
+
+            progressContainer.style.display = 'block';
+            message.style.display = 'none';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>导入中...';
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressFill.style.width = percent + '%';
+                    progressText.textContent = '上传中... ' + percent + '%';
+                }
+            });
+
+            xhr.addEventListener('load', function() {
+                progressContainer.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '导入新未补税数据';
+
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        message.className = 'message success';
+                        message.textContent = '导入成功！共导入 ' + response.data + ' 条数据';
+                    } else {
+                        message.className = 'message error';
+                        message.textContent = '导入失败：' + response.message;
+                    }
+                } else {
+                    message.className = 'message error';
+                    message.textContent = '导入失败：服务器错误';
+                }
+                message.style.display = 'block';
+            });
+
+            xhr.addEventListener('error', function() {
+                progressContainer.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '导入新未补税数据';
+                message.className = 'message error';
+                message.textContent = '导入失败：网络错误';
+                message.style.display = 'block';
+            });
+
+            xhr.open('POST', '/api/import/new-tax');
             xhr.send(formData);
         }
 
