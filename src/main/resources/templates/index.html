@@ -290,6 +290,43 @@
             </div>
             <div class="file-name" id="fileName4"></div>
             <div class="message" id="message4"></div>
+
+            <div class="import-card">
+                <div class="import-info">
+                    <h3>导入税务已缴数据</h3>
+                    <p>导入税务已缴Excel数据（单sheet页，数据从第9行开始，A列非纯数字时终止导入）</p>
+                </div>
+                <div>
+                    <input type="file" id="file5" class="file-input" accept=".xlsx,.xls">
+                    <button class="btn btn-primary" onclick="selectFile('file5')">
+                        导入税务已缴数据
+                    </button>
+                </div>
+            </div>
+            <div class="file-name" id="fileName5"></div>
+
+            <div class="progress-container" id="progress5">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill5"></div>
+                </div>
+                <div class="progress-text" id="progressText5">上传中...</div>
+                <div class="stats" id="stats5" style="display: none;">
+                    <div class="stat-item">
+                        <div class="label">已处理</div>
+                        <div class="value" id="processed5">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">成功</div>
+                        <div class="value" id="success5">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">失败</div>
+                        <div class="value" id="fail5">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="message" id="message5"></div>
         </div>
     </div>
     
@@ -328,6 +365,14 @@
 
             document.getElementById('fileName4').textContent = '已选择文件: ' + file.name;
             uploadFile4(file);
+        });
+
+        document.getElementById('file5').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName5').textContent = '已选择文件: ' + file.name;
+            uploadFile5(file);
         });
         
         function uploadFile1(file) {
@@ -602,6 +647,140 @@
 
             xhr.open('POST', '/api/import/yukou-jl');
             xhr.send(formData);
+        }
+
+        function uploadFile5(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const progressContainer = document.getElementById('progress5');
+            const progressFill = document.getElementById('progressFill5');
+            const progressText = document.getElementById('progressText5');
+            const stats = document.getElementById('stats5');
+            const message = document.getElementById('message5');
+            const btn = document.querySelectorAll('.btn-primary')[4];
+
+            progressContainer.style.display = 'block';
+            stats.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressText.textContent = '上传中...';
+            message.style.display = 'none';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>上传中...';
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressFill.style.width = percent + '%';
+                    progressText.textContent = '上传中... ' + percent + '%';
+                }
+            });
+
+            xhr.addEventListener('load', function() {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        const taskId = response.data;
+                        btn.innerHTML = '<span class="loading"></span>导入中...';
+                        stats.style.display = 'flex';
+                        progressText.textContent = '正在处理数据...';
+                        message.className = 'message info';
+                        message.textContent = '文件已上传，正在后台处理数据...';
+                        message.style.display = 'block';
+
+                        pollProgressForTask(taskId, {
+                            processedId: 'processed5',
+                            successId: 'success5',
+                            failId: 'fail5',
+                            buttonText: '导入税务已缴数据',
+                            btn: btn,
+                            progressFill: progressFill,
+                            progressText: progressText,
+                            message: message
+                        });
+                    } else {
+                        progressContainer.style.display = 'none';
+                        btn.disabled = false;
+                        btn.innerHTML = '导入税务已缴数据';
+                        message.className = 'message error';
+                        message.textContent = '启动导入失败：' + response.message;
+                        message.style.display = 'block';
+                    }
+                } else {
+                    progressContainer.style.display = 'none';
+                    btn.disabled = false;
+                    btn.innerHTML = '导入税务已缴数据';
+                    message.className = 'message error';
+                    message.textContent = '上传失败：服务器错误';
+                    message.style.display = 'block';
+                }
+            });
+
+            xhr.addEventListener('error', function() {
+                progressContainer.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '导入税务已缴数据';
+                message.className = 'message error';
+                message.textContent = '上传失败：网络错误';
+                message.style.display = 'block';
+            });
+
+            xhr.open('POST', '/api/import/yijiao');
+            xhr.send(formData);
+        }
+
+        function pollProgressForTask(taskId, options) {
+            const processedEl = document.getElementById(options.processedId);
+            const successEl = document.getElementById(options.successId);
+            const failEl = document.getElementById(options.failId);
+
+            const interval = setInterval(function() {
+                fetch('/api/import/progress/' + taskId)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const progress = data.data;
+
+                            processedEl.textContent = progress.processedRows;
+                            successEl.textContent = progress.successCount;
+                            failEl.textContent = progress.failCount;
+
+                            if (progress.totalRows > 0) {
+                                const percent = Math.round((progress.processedRows / progress.totalRows) * 100);
+                                options.progressFill.style.width = percent + '%';
+                            }
+
+                            options.progressText.textContent = progress.message;
+
+                            if (progress.status === 'completed') {
+                                clearInterval(interval);
+                                options.btn.disabled = false;
+                                options.btn.innerHTML = options.buttonText;
+                                options.message.className = 'message success';
+                                options.message.textContent = progress.message;
+                                options.message.style.display = 'block';
+                            } else if (progress.status === 'error') {
+                                clearInterval(interval);
+                                options.btn.disabled = false;
+                                options.btn.innerHTML = options.buttonText;
+                                options.message.className = 'message error';
+                                options.message.textContent = progress.message;
+                                options.message.style.display = 'block';
+                            }
+                        } else {
+                            clearInterval(interval);
+                            options.btn.disabled = false;
+                            options.btn.innerHTML = options.buttonText;
+                            options.message.className = 'message error';
+                            options.message.textContent = '获取进度失败：' + data.message;
+                            options.message.style.display = 'block';
+                        }
+                    })
+                    .catch(function() {
+                    });
+            }, 2000);
         }
     </script>
 </body>

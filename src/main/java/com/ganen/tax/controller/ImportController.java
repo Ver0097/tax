@@ -3,6 +3,7 @@ package com.ganen.tax.controller;
 import com.ganen.tax.common.Result;
 import com.ganen.tax.dto.ImportProgress;
 import com.ganen.tax.service.ExcelImportService;
+import com.ganen.tax.service.YijiaoImportService;
 import com.ganen.tax.service.YukouImportService;
 import com.ganen.tax.service.YukouJlImportService;
 import com.ganen.tax.service.YukouQkgImportService;
@@ -25,6 +26,9 @@ public class ImportController {
 
     @Autowired
     private YukouJlImportService yukouJlImportService;
+
+    @Autowired
+    private YijiaoImportService yijiaoImportService;
     
     @GetMapping("/")
     public String index() {
@@ -112,11 +116,35 @@ public class ImportController {
             return Result.error("导入失败：" + e.getMessage());
         }
     }
+
+    @PostMapping("/api/import/yijiao")
+    @ResponseBody
+    public Result<String> importYijiao(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return Result.error("请选择要导入的文件");
+            }
+
+            String fileName = file.getOriginalFilename();
+
+            if (fileName == null || (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls"))) {
+                return Result.error("请选择Excel文件（.xlsx或.xls格式）");
+            }
+
+            String taskId = yijiaoImportService.startImport(file);
+            return Result.success("导入任务已启动", taskId);
+        } catch (Exception e) {
+            return Result.error("启动导入失败：" + e.getMessage());
+        }
+    }
     
     @GetMapping("/api/import/progress/{taskId}")
     @ResponseBody
     public Result<ImportProgress> getProgress(@PathVariable String taskId) {
         ImportProgress progress = yukouImportService.getProgress(taskId);
+        if (progress == null) {
+            progress = yijiaoImportService.getProgress(taskId);
+        }
         if (progress == null) {
             return Result.error("任务不存在");
         }
