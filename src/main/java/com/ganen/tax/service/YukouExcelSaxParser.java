@@ -146,9 +146,6 @@ public class YukouExcelSaxParser {
             }
 
             BigDecimal taxAmount = parseBigDecimal(getValue(COL_TAX_AMOUNT));
-            if (taxAmount.compareTo(BigDecimal.ZERO) == 0) {
-                return null;
-            }
 
             YukouInfo yukouInfo = new YukouInfo();
             
