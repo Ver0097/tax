@@ -17,7 +17,21 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.servlet.http.HttpServletResponse;
+
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.io.OutputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+
 
 @Controller
 public class ImportController {
@@ -114,6 +128,81 @@ public class ImportController {
         } catch (Exception e) {
             return Result.error("查询失败：" + e.getMessage());
         }
+    }
+
+    @PostMapping("/api/tax/export")
+    public void exportTaxList(@RequestParam(value = "userName", required = false) String userName,
+                              @RequestParam(value = "idCard", required = false) String idCard,
+                              HttpServletResponse response) {
+        Workbook workbook = new XSSFWorkbook();
+        try {
+            TaxQueryRequest request = new TaxQueryRequest();
+            request.setUserName(userName);
+            request.setIdCard(idCard);
+            List<Tax> list = taxService.queryAllTaxList(request);
+            Sheet sheet = workbook.createSheet("应追缴金额和相关信息");
+
+            String[] headers = {"姓名", "身份证号", "联系电话", "扣缴义务人名称", "应补金额", "预扣金额", "实缴金额", "（预扣-实缴）金额", "追缴金额", "涉及税地", "涉及商户", "涉及渠道", "涉及销售", "涉及客服"};
+            Row headerRow = sheet.createRow(0);
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerStyle.setFont(headerFont);
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            for (int i = 0; i < list.size(); i++) {
+                Tax tax = list.get(i);
+                Row row = sheet.createRow(i + 1);
+                row.createCell(0).setCellValue(nullToEmpty(tax.getUserName()));
+                row.createCell(1).setCellValue(nullToEmpty(tax.getIdCard()));
+                row.createCell(2).setCellValue(nullToEmpty(tax.getPhone()));
+                row.createCell(3).setCellValue(nullToEmpty(tax.getWithholdingAgent()));
+                row.createCell(4).setCellValue(formatNumber(tax.getShouldPay()));
+                row.createCell(5).setCellValue(formatNumber(tax.getPreDeduct()));
+                row.createCell(6).setCellValue(formatNumber(tax.getActualPay()));
+                row.createCell(7).setCellValue(formatNumber(tax.getDiffAmount()));
+                row.createCell(8).setCellValue(formatNumber(tax.getRecoverPay()));
+                row.createCell(9).setCellValue(nullToEmpty(tax.getTaxArea()));
+                row.createCell(10).setCellValue(nullToEmpty(tax.getMerchant()));
+                row.createCell(11).setCellValue(nullToEmpty(tax.getChannel()));
+                row.createCell(12).setCellValue(nullToEmpty(tax.getSale()));
+                row.createCell(13).setCellValue(nullToEmpty(tax.getCustomerService()));
+            }
+
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            String fileName = URLEncoder.encode("应追缴金额和相关信息", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + fileName + ".xlsx");
+
+            try (OutputStream os = response.getOutputStream()) {
+                workbook.write(os);
+                os.flush();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        } finally {
+            try {
+                workbook.close();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String formatNumber(java.math.BigDecimal value) {
+        return value == null ? "" : value.toPlainString();
     }
     
     @PostMapping("/api/import/yukou")

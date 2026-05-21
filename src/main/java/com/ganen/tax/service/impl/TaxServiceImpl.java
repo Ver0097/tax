@@ -34,4 +34,12 @@ public class TaxServiceImpl implements TaxService {
         List<Tax> records = taxMapper.queryTaxList(userName, idCard, offset, pageSize);
         return PageResult.of(total, pageNo, pageSize, records);
     }
+
+    @Override
+    public List<Tax> queryAllTaxList(TaxQueryRequest request) {
+        String userName = request == null ? null : request.getUserName();
+        String idCard = request == null ? null : request.getIdCard();
+        long total = taxMapper.countTaxList(userName, idCard);
+        return taxMapper.queryTaxList(userName, idCard, 0, total);
+    }
 }

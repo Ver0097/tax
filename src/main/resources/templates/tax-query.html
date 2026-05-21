@@ -113,6 +113,15 @@
             align-items: center;
         }
 
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
         .btn:disabled {
             background: #ccc;
             cursor: not-allowed;
@@ -150,6 +159,10 @@
         <div class="top-actions">
             <h1>应追缴金额和相关信息查询</h1>
             <button class="btn" onclick="goHome()">返回首页</button>
+        </div>
+        <div class="toolbar">
+            <div></div>
+            <button class="btn" onclick="exportAll()">导出全部数据</button>
         </div>
         <div class="search-bar">
             <input type="text" id="searchUserName" class="search-input" placeholder="姓名模糊搜索">
@@ -230,6 +243,27 @@
             .catch(function() {
                 showTaxToolMessage('查询失败：网络错误');
             });
+    }
+
+    function exportAll() {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/api/tax/export';
+        form.style.display = 'none';
+
+        const userName = document.createElement('input');
+        userName.name = 'userName';
+        userName.value = document.getElementById('searchUserName').value;
+
+        const idCard = document.createElement('input');
+        idCard.name = 'idCard';
+        idCard.value = document.getElementById('searchIdCard').value;
+
+        form.appendChild(userName);
+        form.appendChild(idCard);
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
     }
 
     function renderTaxTable(list) {
