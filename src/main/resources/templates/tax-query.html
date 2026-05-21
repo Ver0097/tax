@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>应追缴金额和相关信息查询</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .top-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .search-input {
+            padding: 10px 12px;
+            border: 1px solid #dcdcdc;
+            border-radius: 6px;
+            min-width: 220px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .message {
+            margin: 16px 0;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1400px;
+        }
+
+        th, td {
+            border: 1px solid #e5e5e5;
+            padding: 10px;
+            text-align: left;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #f7f8fc;
+            color: #333;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="page-card">
+        <div class="top-actions">
+            <h1>应追缴金额和相关信息查询</h1>
+            <button class="btn" onclick="goHome()">返回首页</button>
+        </div>
+        <div class="search-bar">
+            <input type="text" id="searchUserName" class="search-input" placeholder="姓名模糊搜索">
+            <input type="text" id="searchIdCard" class="search-input" placeholder="身份证号模糊搜索">
+            <button class="btn" onclick="loadTaxList()">查询</button>
+        </div>
+        <div class="message" id="taxToolMessage"></div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>姓名</th>
+                    <th>身份证号</th>
+                    <th>联系电话</th>
+                    <th>扣缴义务人名称</th>
+                    <th>应补金额</th>
+                    <th>预扣金额</th>
+                    <th>实缴金额</th>
+                    <th>（预扣-实缴）金额</th>
+                    <th>追缴金额</th>
+                    <th>涉及税地</th>
+                    <th>涉及商户</th>
+                    <th>涉及渠道</th>
+                    <th>涉及销售</th>
+                    <th>涉及客服</th>
+                </tr>
+                </thead>
+                <tbody id="taxTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function goHome() {
+        window.location.href = '/';
+    }
+
+    function showTaxToolMessage(text) {
+        const message = document.getElementById('taxToolMessage');
+        message.className = 'message error';
+        message.textContent = text;
+        message.style.display = 'block';
+    }
+
+    function loadTaxList() {
+        const userName = document.getElementById('searchUserName').value;
+        const idCard = document.getElementById('searchIdCard').value;
+
+        fetch('/api/tax/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userName: userName, idCard: idCard })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('taxToolMessage').style.display = 'none';
+                    renderTaxTable(data.data || []);
+                } else {
+                    showTaxToolMessage('查询失败：' + data.message);
+                }
+            })
+            .catch(function() {
+                showTaxToolMessage('查询失败：网络错误');
+            });
+    }
+
+    function renderTaxTable(list) {
+        const tbody = document.getElementById('taxTableBody');
+        if (!list || list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14">暂无数据</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map(function(item) {
+            return '<tr>' +
+                '<td>' + (item.userName || '') + '</td>' +
+                '<td>' + (item.idCard || '') + '</td>' +
+                '<td>' + (item.phone || '') + '</td>' +
+                '<td>' + (item.withholdingAgent || '') + '</td>' +
+                '<td>' + (item.shouldPay || '') + '</td>' +
+                '<td>' + (item.preDeduct || '') + '</td>' +
+                '<td>' + (item.actualPay || '') + '</td>' +
+                '<td>' + (item.diffAmount || '') + '</td>' +
+                '<td>' + (item.recoverPay || '') + '</td>' +
+                '<td>' + (item.taxArea || '') + '</td>' +
+                '<td>' + (item.merchant || '') + '</td>' +
+                '<td>' + (item.channel || '') + '</td>' +
+                '<td>' + (item.sale || '') + '</td>' +
+                '<td>' + (item.customerService || '') + '</td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    loadTaxList();
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ganen.tax.mapper.TaxMapper">
+
+    <select id="queryTaxList" resultType="com.ganen.tax.entity.Tax">
+        SELECT
+            id,
+            user_name,
+            id_card,
+            phone,
+            withholding_agent,
+            should_pay,
+            pre_deduct,
+            actual_pay,
+            diff_amount,
+            recover_pay,
+            tax_area,
+            merchant,
+            channel,
+            sale,
+            customer_service,
+            status,
+            create_time,
+            update_time
+        FROM tax
+        <where>
+            <if test="userName != null and userName != ''">
+                AND user_name LIKE CONCAT('%', #{userName}, '%')
+            </if>
+            <if test="idCard != null and idCard != ''">
+                AND id_card LIKE CONCAT('%', #{idCard}, '%')
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+</mapper>

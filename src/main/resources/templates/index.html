@@ -192,6 +192,7 @@
             font-size: 18px;
             font-weight: bold;
         }
+
     </style>
 </head>
 <body>
@@ -200,6 +201,21 @@
         
         <div class="import-section">
             <h2>数据导入</h2>
+            <div class="import-card">
+                <div class="import-info">
+                    <h3>应追缴计算与查询</h3>
+                    <p>计算 tax 表应追缴金额及相关信息，或打开新页面查询结果</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="calculateTaxRecover()">
+                        计算应追缴金额和相关信息
+                    </button>
+                    <button class="btn btn-primary" onclick="openTaxQueryPage()">
+                        查询应追缴金额和相关信息
+                    </button>
+                </div>
+            </div>
+            <div class="message" id="taxToolMessage"></div>
             
             <div class="import-card">
                 <div class="import-info">
@@ -356,6 +372,35 @@
     <script>
         function selectFile(inputId) {
             document.getElementById(inputId).click();
+        }
+
+        function showTaxToolMessage(text, type) {
+            const message = document.getElementById('taxToolMessage');
+            message.className = 'message ' + type;
+            message.textContent = text;
+            message.style.display = 'block';
+        }
+
+        function openTaxQueryPage() {
+            window.open('/tax-query', '_blank');
+        }
+
+        function calculateTaxRecover() {
+            const message = document.getElementById('taxToolMessage');
+            message.style.display = 'none';
+
+            fetch('/api/tax/calculate', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showTaxToolMessage('计算成功，更新 ' + data.data + ' 条数据', 'success');
+                    } else {
+                        showTaxToolMessage('计算失败：' + data.message, 'error');
+                    }
+                })
+                .catch(function() {
+                    showTaxToolMessage('计算失败：网络错误', 'error');
+                });
         }
         
         document.getElementById('file1').addEventListener('change', function(e) {

@@ -2,16 +2,21 @@ package com.ganen.tax.controller;
 
 import com.ganen.tax.common.Result;
 import com.ganen.tax.dto.ImportProgress;
+import com.ganen.tax.dto.TaxQueryRequest;
 import com.ganen.tax.service.ExcelImportService;
 import com.ganen.tax.service.TaxNewImportService;
+import com.ganen.tax.service.TaxService;
 import com.ganen.tax.service.YijiaoImportService;
 import com.ganen.tax.service.YukouImportService;
 import com.ganen.tax.service.YukouJlImportService;
 import com.ganen.tax.service.YukouQkgImportService;
+import com.ganen.tax.entity.Tax;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Controller
 public class ImportController {
@@ -21,6 +26,9 @@ public class ImportController {
 
     @Autowired
     private TaxNewImportService taxNewImportService;
+
+    @Autowired
+    private TaxService taxService;
     
     @Autowired
     private YukouImportService yukouImportService;
@@ -37,6 +45,11 @@ public class ImportController {
     @GetMapping("/")
     public String index() {
         return "index";
+    }
+
+    @GetMapping("/tax-query")
+    public String taxQueryPage() {
+        return "tax-query";
     }
     
     @PostMapping("/api/import/excel")
@@ -78,6 +91,27 @@ public class ImportController {
             return Result.success("导入成功", count);
         } catch (Exception e) {
             return Result.error("导入失败：" + e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/tax/calculate")
+    @ResponseBody
+    public Result<Integer> calculateTaxRecoverInfo() {
+        try {
+            int count = taxService.calculateRecoverInfo();
+            return Result.success("计算成功", count);
+        } catch (Exception e) {
+            return Result.error("计算失败：" + e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/tax/query")
+    @ResponseBody
+    public Result<List<Tax>> queryTaxList(@RequestBody(required = false) TaxQueryRequest request) {
+        try {
+            return Result.success(taxService.queryTaxList(request));
+        } catch (Exception e) {
+            return Result.error("查询失败：" + e.getMessage());
         }
     }
     
