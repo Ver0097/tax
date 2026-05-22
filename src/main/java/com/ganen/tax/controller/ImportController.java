@@ -214,8 +214,8 @@ public class ImportController {
             }
             
             String fileName = file.getOriginalFilename();
-            if (fileName == null || !fileName.endsWith(".xlsx")) {
-                return Result.error("请选择Excel文件（.xlsx格式）");
+            if (fileName == null || (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls"))) {
+                return Result.error("请选择Excel文件（.xlsx或.xls格式）");
             }
             
             String taskId = yukouImportService.startImport(file);
@@ -234,8 +234,8 @@ public class ImportController {
             }
 
             String fileName = file.getOriginalFilename();
-            if (fileName == null || !fileName.endsWith(".xlsx")) {
-                return Result.error("请选择Excel文件（.xlsx格式）");
+            if (fileName == null || (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls"))) {
+                return Result.error("请选择Excel文件（.xlsx或.xls格式）");
             }
 
             int count = yukouQkgImportService.importQkg(file);

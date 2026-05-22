@@ -5,7 +5,7 @@ import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,7 +39,7 @@ public class YukouQkgImportService {
         List<YukouQkgInfo> buffer = new ArrayList<>(INSERT_BATCH_SIZE);
         int success = 0;
 
-        try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
+        try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet == null) {
                 return 0;
@@ -53,9 +53,6 @@ public class YukouQkgImportService {
                 }
 
                 BigDecimal taxAmount = parseBigDecimal(formatter.formatCellValue(row.getCell(COL_TAX_AMOUNT)));
-                if (taxAmount.compareTo(BigDecimal.ZERO) == 0) {
-                    continue;
-                }
 
                 YukouQkgInfo info = new YukouQkgInfo();
                 info.setPayee(trim(formatter.formatCellValue(row.getCell(COL_PAYEE))));
