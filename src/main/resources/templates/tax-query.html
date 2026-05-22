@@ -158,7 +158,7 @@
     <div class="page-card">
         <div class="top-actions">
             <h1>应追缴金额和相关信息查询</h1>
-            <button class="btn" onclick="goHome()">返回首页</button>
+            <!--<button class="btn" onclick="goHome()">返回首页</button>-->
         </div>
         <div class="toolbar">
             <div></div>
@@ -273,17 +273,21 @@
             return;
         }
 
+        function displayAmount(value) {
+            return value === 0 || value === '0' ? '0' : (value || '');
+        }
+
         tbody.innerHTML = list.map(function(item) {
             return '<tr>' +
                 '<td>' + (item.userName || '') + '</td>' +
                 '<td>' + (item.idCard || '') + '</td>' +
                 '<td>' + (item.phone || '') + '</td>' +
                 '<td>' + (item.withholdingAgent || '') + '</td>' +
-                '<td>' + (item.shouldPay || '') + '</td>' +
-                '<td>' + (item.preDeduct || '') + '</td>' +
-                '<td>' + (item.actualPay || '') + '</td>' +
-                '<td>' + (item.diffAmount || '') + '</td>' +
-                '<td>' + (item.recoverPay || '') + '</td>' +
+                '<td>' + displayAmount(item.shouldPay) + '</td>' +
+                '<td>' + displayAmount(item.preDeduct) + '</td>' +
+                '<td>' + displayAmount(item.actualPay) + '</td>' +
+                '<td>' + displayAmount(item.diffAmount) + '</td>' +
+                '<td>' + displayAmount(item.recoverPay) + '</td>' +
                 '<td>' + (item.taxArea || '') + '</td>' +
                 '<td>' + (item.merchant || '') + '</td>' +
                 '<td>' + (item.channel || '') + '</td>' +
