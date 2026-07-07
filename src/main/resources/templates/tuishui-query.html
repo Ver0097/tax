@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>退税着急名单查询</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .top-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .search-input {
+            padding: 10px 12px;
+            border: 1px solid #dcdcdc;
+            border-radius: 6px;
+            min-width: 220px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .message {
+            margin: 16px 0;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .pagination-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .pagination-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        th, td {
+            border: 1px solid #e5e5e5;
+            padding: 10px;
+            text-align: left;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #f7f8fc;
+            color: #333;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="page-card">
+        <div class="top-actions">
+            <h1>退税着急名单查询</h1>
+        </div>
+        <div class="toolbar">
+            <div></div>
+            <button class="btn" onclick="exportAll()">导出全部数据</button>
+        </div>
+        <div class="search-bar">
+            <input type="text" id="searchUserName" class="search-input" placeholder="姓名模糊搜索">
+            <input type="text" id="searchIdCard" class="search-input" placeholder="身份证号模糊搜索">
+            <button class="btn" onclick="loadTuishuiList()">查询</button>
+        </div>
+        <div class="message" id="tuishuiToolMessage"></div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>姓名</th>
+                    <th>身份证号</th>
+                    <th>联系电话</th>
+                    <th>退税金额</th>
+                    <th>预扣金额</th>
+                    <th>实缴金额</th>
+                    <th>（预扣-实缴）金额</th>
+                    <th>涉及税地</th>
+                    <th>涉及商户</th>
+                    <th>涉及渠道</th>
+                    <th>涉及销售</th>
+                    <th>涉及客服</th>
+                </tr>
+                </thead>
+                <tbody id="tuishuiTableBody"></tbody>
+            </table>
+        </div>
+        <div class="pagination">
+            <div class="pagination-info" id="paginationInfo">共 0 条，第 1 / 1 页</div>
+            <div class="pagination-actions">
+                <button class="btn" id="prevPageBtn" onclick="changePage(-1)">上一页</button>
+                <button class="btn" id="nextPageBtn" onclick="changePage(1)">下一页</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPageNo = 1;
+    const pageSize = 10;
+    let totalPages = 1;
+
+    function showTuishuiMessage(text) {
+        const message = document.getElementById('tuishuiToolMessage');
+        message.className = 'message error';
+        message.textContent = text;
+        message.style.display = 'block';
+    }
+
+    function loadTuishuiList() {
+        const userName = document.getElementById('searchUserName').value;
+        const idCard = document.getElementById('searchIdCard').value;
+
+        fetch('/api/tuishui/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userName: userName, idCard: idCard, pageNo: currentPageNo, pageSize: pageSize })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('tuishuiToolMessage').style.display = 'none';
+                    renderTuishuiTable(data.data.records || []);
+                    updatePagination(data.data);
+                } else {
+                    showTuishuiMessage('查询失败：' + data.message);
+                }
+            })
+            .catch(function() {
+                showTuishuiMessage('查询失败：网络错误');
+            });
+    }
+
+    function exportAll() {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/api/tuishui/export';
+        form.style.display = 'none';
+
+        const userName = document.createElement('input');
+        userName.name = 'userName';
+        userName.value = document.getElementById('searchUserName').value;
+
+        const idCard = document.createElement('input');
+        idCard.name = 'idCard';
+        idCard.value = document.getElementById('searchIdCard').value;
+
+        form.appendChild(userName);
+        form.appendChild(idCard);
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+    }
+
+    function renderTuishuiTable(list) {
+        const tbody = document.getElementById('tuishuiTableBody');
+        if (!list || list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="12">暂无数据</td></tr>';
+            return;
+        }
+
+        function displayAmount(value) {
+            return value === 0 || value === '0' ? '0' : (value || '');
+        }
+
+        tbody.innerHTML = list.map(function(item) {
+            return '<tr>' +
+                '<td>' + (item.userName || '') + '</td>' +
+                '<td>' + (item.idCard || '') + '</td>' +
+                '<td>' + (item.phone || '') + '</td>' +
+                '<td>' + displayAmount(item.tsAmount) + '</td>' +
+                '<td>' + displayAmount(item.preDeduct) + '</td>' +
+                '<td>' + displayAmount(item.actualPay) + '</td>' +
+                '<td>' + displayAmount(item.diffAmount) + '</td>' +
+                '<td>' + (item.taxArea || '') + '</td>' +
+                '<td>' + (item.merchant || '') + '</td>' +
+                '<td>' + (item.channel || '') + '</td>' +
+                '<td>' + (item.sale || '') + '</td>' +
+                '<td>' + (item.customerService || '') + '</td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    function updatePagination(pageData) {
+        const total = pageData.total || 0;
+        const pageNo = pageData.pageNo || 1;
+        const currentPageSize = pageData.pageSize || pageSize;
+        totalPages = Math.max(1, Math.ceil(total / currentPageSize));
+        currentPageNo = pageNo;
+
+        document.getElementById('paginationInfo').textContent = '共 ' + total + ' 条，第 ' + pageNo + ' / ' + totalPages + ' 页';
+        document.getElementById('prevPageBtn').disabled = pageNo <= 1;
+        document.getElementById('nextPageBtn').disabled = pageNo >= totalPages;
+    }
+
+    function changePage(step) {
+        const targetPage = currentPageNo + step;
+        if (targetPage < 1 || targetPage > totalPages) {
+            return;
+        }
+        currentPageNo = targetPage;
+        loadTuishuiList();
+    }
+
+    document.getElementById('searchUserName').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            currentPageNo = 1;
+            loadTuishuiList();
+        }
+    });
+
+    document.getElementById('searchIdCard').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            currentPageNo = 1;
+            loadTuishuiList();
+        }
+    });
+
+    // 页面加载时自动查询
+    loadTuishuiList();
+</script>
+</body>
+</html>

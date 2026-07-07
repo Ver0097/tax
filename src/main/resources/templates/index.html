@@ -366,6 +366,28 @@
             </div>
 
             <div class="message" id="message5"></div>
+
+            <!-- 退税着急名单 -->
+            <div class="import-card">
+                <div class="import-info">
+                    <h3>退税着急名单</h3>
+                    <p>导入退税着急名单Excel（A列姓名、B列身份证号、C列退税金额），计算后在新页面查询结果</p>
+                </div>
+                <div>
+                    <input type="file" id="file7" class="file-input" accept=".xlsx,.xls" onchange="handleTuishuiFile(this)">
+                    <button class="btn btn-primary" onclick="selectFile('file7')">
+                        导入退税着急名单
+                    </button>
+                    <button class="btn btn-primary" onclick="calculateTuishui()">
+                        计算退税着急名单
+                    </button>
+                    <button class="btn btn-primary" onclick="openTuishuiQueryPage()">
+                        查询退税着急名单
+                    </button>
+                </div>
+            </div>
+            <div class="file-name" id="fileName7"></div>
+            <div class="message" id="message7"></div>
         </div>
     </div>
     
@@ -916,6 +938,73 @@
                     .catch(function() {
                     });
             }, 2000);
+        }
+
+        // ========== 退税着急名单 ==========
+
+        function handleTuishuiFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName7').textContent = '已选择文件: ' + file.name;
+            uploadTuishuiFile(file);
+        }
+
+        function uploadTuishuiFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const message = document.getElementById('message7');
+
+            message.style.display = 'none';
+
+            fetch('/api/import/tuishui', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        message.className = 'message success';
+                        message.textContent = '导入成功！共导入 ' + data.data + ' 条数据';
+                    } else {
+                        message.className = 'message error';
+                        message.textContent = '导入失败：' + data.message;
+                    }
+                    message.style.display = 'block';
+                })
+                .catch(function() {
+                    message.className = 'message error';
+                    message.textContent = '导入失败：网络错误';
+                    message.style.display = 'block';
+                });
+        }
+
+        function calculateTuishui() {
+            const message = document.getElementById('message7');
+            message.style.display = 'none';
+
+            fetch('/api/tuishui/calculate', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        message.className = 'message success';
+                        message.textContent = '计算成功，更新 ' + data.data + ' 条数据';
+                    } else {
+                        message.className = 'message error';
+                        message.textContent = '计算失败：' + data.message;
+                    }
+                    message.style.display = 'block';
+                })
+                .catch(function() {
+                    message.className = 'message error';
+                    message.textContent = '计算失败：网络错误';
+                    message.style.display = 'block';
+                });
+        }
+
+        function openTuishuiQueryPage() {
+            window.open('/tuishui-query', '_blank');
         }
     </script>
 </body>

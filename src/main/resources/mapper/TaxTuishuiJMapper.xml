@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ganen.tax.mapper.TaxTuishuiJMapper">
+
+    <!-- 计算并更新退税着急名单的预扣金额、实缴金额、差额及相关信息 -->
+    <update id="calculateTuishuiInfo">
+        UPDATE tax_tuishui_j t
+        LEFT JOIN (
+            SELECT
+                id_card,
+                COALESCE(SUM(tax_amount), 0) AS total_tax_amount,
+                MAX(NULLIF(phone, '')) AS phone,
+                GROUP_CONCAT(DISTINCT NULLIF(tax_area, '') ORDER BY tax_area SEPARATOR ',') AS tax_area,
+                GROUP_CONCAT(DISTINCT NULLIF(merchant, '') ORDER BY merchant SEPARATOR ',') AS merchant,
+                GROUP_CONCAT(DISTINCT NULLIF(channel, '') ORDER BY channel SEPARATOR ',') AS channel,
+                GROUP_CONCAT(DISTINCT NULLIF(sale, '') ORDER BY sale SEPARATOR ',') AS sale,
+                GROUP_CONCAT(DISTINCT NULLIF(customer_service, '') ORDER BY customer_service SEPARATOR ',') AS customer_service
+            FROM v_yukou_all
+            GROUP BY id_card
+        ) vy ON t.id_card = vy.id_card
+        LEFT JOIN (
+            SELECT id_card, COALESCE(SUM(paid_amount), 0) AS total_paid_amount
+            FROM yijiao_info
+            GROUP BY id_card
+        ) yi ON t.id_card = yi.id_card
+        SET
+            t.phone = COALESCE(vy.phone, t.phone),
+            t.pre_deduct = COALESCE(vy.total_tax_amount, 0),
+            t.actual_pay = COALESCE(yi.total_paid_amount, 0),
+            t.diff_amount = COALESCE(vy.total_tax_amount, 0) - COALESCE(yi.total_paid_amount, 0),
+            t.tax_area = COALESCE(vy.tax_area, ''),
+            t.merchant = COALESCE(vy.merchant, ''),
+            t.channel = COALESCE(vy.channel, ''),
+            t.sale = COALESCE(vy.sale, ''),
+            t.customer_service = COALESCE(vy.customer_service, ''),
+            t.update_time = NOW()
+    </update>
+
+    <!-- 查询条件片段 -->
+    <sql id="TuishuiWhere">
+        <where>
+            <if test="userName != null and userName != ''">
+                AND user_name LIKE CONCAT('%', #{userName}, '%')
+            </if>
+            <if test="idCard != null and idCard != ''">
+                AND id_card LIKE CONCAT('%', #{idCard}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- 统计数量 -->
+    <select id="countTuishuiList" resultType="long">
+        SELECT COUNT(*)
+        FROM tax_tuishui_j
+        <include refid="TuishuiWhere"/>
+    </select>
+
+    <!-- 分页查询 -->
+    <select id="queryTuishuiList" resultType="com.ganen.tax.entity.TaxTuishuiJ">
+        SELECT
+            id,
+            user_name,
+            id_card,
+            phone,
+            ts_amount,
+            pre_deduct,
+            actual_pay,
+            diff_amount,
+            tax_area,
+            merchant,
+            channel,
+            sale,
+            customer_service,
+            status,
+            create_time,
+            update_time
+        FROM tax_tuishui_j
+        <include refid="TuishuiWhere"/>
+        ORDER BY id DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+</mapper>
