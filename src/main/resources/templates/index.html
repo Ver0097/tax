@@ -388,6 +388,43 @@
             </div>
             <div class="file-name" id="fileName7"></div>
             <div class="message" id="message7"></div>
+
+            <!-- 退税全量名单 -->
+            <div class="import-card">
+                <div class="import-info">
+                    <h3>退税全量名单</h3>
+                    <p>从 v_yukou_all 全量计算所有人的（预扣-实缴）金额汇总（约20万条数据，分批异步处理）</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" id="tuishuiAllCalcBtn" onclick="calculateTuishuiAll()">
+                        计算退税全量名单
+                    </button>
+                    <button class="btn btn-primary" onclick="openTuishuiAllQueryPage()">
+                        查询退税全量名单
+                    </button>
+                </div>
+            </div>
+            <div class="progress-container" id="progress8">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill8"></div>
+                </div>
+                <div class="progress-text" id="progressText8">计算中...</div>
+                <div class="stats" id="stats8" style="display: none;">
+                    <div class="stat-item">
+                        <div class="label">已处理</div>
+                        <div class="value" id="processed8">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">成功</div>
+                        <div class="value" id="success8">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">失败</div>
+                        <div class="value" id="fail8">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="message" id="message8"></div>
         </div>
     </div>
     
@@ -1005,6 +1042,112 @@
 
         function openTuishuiQueryPage() {
             window.open('/tuishui-query', '_blank');
+        }
+
+        // ========== 退税全量名单 ==========
+
+        function calculateTuishuiAll() {
+            const progressContainer = document.getElementById('progress8');
+            const progressFill = document.getElementById('progressFill8');
+            const progressText = document.getElementById('progressText8');
+            const stats = document.getElementById('stats8');
+            const message = document.getElementById('message8');
+            const btn = document.getElementById('tuishuiAllCalcBtn');
+
+            progressContainer.style.display = 'block';
+            stats.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressText.textContent = '正在启动计算...';
+            message.style.display = 'none';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>计算中...';
+
+            fetch('/api/tuishui-all/calculate', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const taskId = data.data;
+                        stats.style.display = 'flex';
+                        progressText.textContent = '正在计算...';
+                        message.className = 'message info';
+                        message.textContent = '计算任务已启动，正在后台分批处理数据...';
+                        message.style.display = 'block';
+
+                        pollTuishuiAllProgress(taskId, btn, progressFill, progressText, message);
+                    } else {
+                        progressContainer.style.display = 'none';
+                        btn.disabled = false;
+                        btn.innerHTML = '计算退税全量名单';
+                        message.className = 'message error';
+                        message.textContent = '启动失败：' + data.message;
+                        message.style.display = 'block';
+                    }
+                })
+                .catch(function() {
+                    progressContainer.style.display = 'none';
+                    btn.disabled = false;
+                    btn.innerHTML = '计算退税全量名单';
+                    message.className = 'message error';
+                    message.textContent = '启动失败：网络错误';
+                    message.style.display = 'block';
+                });
+        }
+
+        function pollTuishuiAllProgress(taskId, btn, progressFill, progressText, message) {
+            const processedEl = document.getElementById('processed8');
+            const successEl = document.getElementById('success8');
+            const failEl = document.getElementById('fail8');
+
+            const interval = setInterval(function() {
+                fetch('/api/tuishui-all/progress/' + taskId)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const progress = data.data;
+
+                            processedEl.textContent = progress.processedRows;
+                            successEl.textContent = progress.successCount;
+                            failEl.textContent = progress.failCount;
+
+                            if (progress.totalRows > 0) {
+                                const percent = Math.round((progress.processedRows / progress.totalRows) * 100);
+                                progressFill.style.width = percent + '%';
+                            }
+
+                            progressText.textContent = progress.message;
+
+                            if (progress.status === 'completed') {
+                                clearInterval(interval);
+                                btn.disabled = false;
+                                btn.innerHTML = '计算退税全量名单';
+                                message.className = 'message success';
+                                message.textContent = progress.message;
+                                message.style.display = 'block';
+                            } else if (progress.status === 'error') {
+                                clearInterval(interval);
+                                btn.disabled = false;
+                                btn.innerHTML = '计算退税全量名单';
+                                message.className = 'message error';
+                                message.textContent = progress.message;
+                                message.style.display = 'block';
+                            }
+                        } else {
+                            clearInterval(interval);
+                            btn.disabled = false;
+                            btn.innerHTML = '计算退税全量名单';
+                            message.className = 'message error';
+                            message.textContent = '获取进度失败：' + data.message;
+                            message.style.display = 'block';
+                        }
+                    })
+                    .catch(function() {
+                        // 轮询异常静默处理
+                    });
+            }, 2000);
+        }
+
+        function openTuishuiAllQueryPage() {
+            window.open('/tuishui-all-query', '_blank');
         }
     </script>
 </body>

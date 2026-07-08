@@ -1,0 +1,20 @@
+CREATE TABLE `tax_tuishui_all` (
+    `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `user_name` varchar(30) NOT NULL DEFAULT '' COMMENT '姓名（来源v_yukou_all.payee，多笔只取一笔）',
+    `id_card` varchar(18) NOT NULL DEFAULT '' COMMENT '身份证号',
+    `phone` varchar(11) NOT NULL DEFAULT '' COMMENT '联系电话（来源v_yukou_all，多笔只取一笔）',
+    `pre_deduct` decimal(12,2) NOT NULL DEFAULT '0.00' COMMENT '预扣金额',
+    `actual_pay` decimal(12,2) NOT NULL DEFAULT '0.00' COMMENT '实缴金额',
+    `diff_amount` decimal(12,2) NOT NULL DEFAULT '0.00' COMMENT '（预扣-实缴）金额',
+    `tax_area` varchar(200) NOT NULL DEFAULT '' COMMENT '涉及税地',
+    `merchant` varchar(200) NOT NULL DEFAULT '' COMMENT '涉及商户',
+    `channel` varchar(200) NOT NULL DEFAULT '' COMMENT '涉及渠道',
+    `sale` varchar(200) NOT NULL DEFAULT '' COMMENT '涉及销售',
+    `customer_service` varchar(200) NOT NULL DEFAULT '' COMMENT '涉及客服',
+    `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态:0正常',
+    `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_id_card` (`id_card`),
+    KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='退税全量名单（全量人员汇总）';
