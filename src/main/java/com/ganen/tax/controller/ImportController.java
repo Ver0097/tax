@@ -8,6 +8,7 @@ import com.ganen.tax.service.ExcelImportService;
 import com.ganen.tax.service.TaxNewImportService;
 import com.ganen.tax.service.TaxService;
 import com.ganen.tax.service.YijiaoImportService;
+import com.ganen.tax.service.YijiaoQfsdImportService;
 import com.ganen.tax.service.YukouImportService;
 import com.ganen.tax.service.YukouJlImportService;
 import com.ganen.tax.service.TaxTuishuiJImportService;
@@ -61,6 +62,9 @@ public class ImportController {
 
     @Autowired
     private YijiaoImportService yijiaoImportService;
+
+    @Autowired
+    private YijiaoQfsdImportService yijiaoQfsdImportService;
 
     @Autowired
     private TaxTuishuiJImportService taxTuishuiJImportService;
@@ -309,7 +313,27 @@ public class ImportController {
             return Result.error("启动导入失败：" + e.getMessage());
         }
     }
-    
+
+    @PostMapping("/api/import/yijiao-qfsd")
+    @ResponseBody
+    public Result<String> importYijiaoQfsd(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return Result.error("请选择要导入的文件");
+            }
+
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls"))) {
+                return Result.error("请选择Excel文件（.xlsx或.xls格式）");
+            }
+
+            String taskId = yijiaoQfsdImportService.startImport(file);
+            return Result.success("导入任务已启动", taskId);
+        } catch (Exception e) {
+            return Result.error("启动导入失败：" + e.getMessage());
+        }
+    }
+
     // ========== 退税着急名单 ==========
 
     @PostMapping("/api/import/tuishui")
@@ -521,6 +545,9 @@ public class ImportController {
         ImportProgress progress = yukouImportService.getProgress(taskId);
         if (progress == null) {
             progress = yijiaoImportService.getProgress(taskId);
+        }
+        if (progress == null) {
+            progress = yijiaoQfsdImportService.getProgress(taskId);
         }
         if (progress == null) {
             progress = taxTuishuiAllService.getProgress(taskId);
