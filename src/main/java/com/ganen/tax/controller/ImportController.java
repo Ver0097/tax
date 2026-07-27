@@ -14,10 +14,12 @@ import com.ganen.tax.service.YukouJlImportService;
 import com.ganen.tax.service.TaxTuishuiJImportService;
 import com.ganen.tax.service.TaxTuishuiJService;
 import com.ganen.tax.service.TaxTuishuiAllService;
+import com.ganen.tax.service.TaxTuishuiAllQfsdService;
 import com.ganen.tax.service.YukouQkgImportService;
 import com.ganen.tax.entity.Tax;
 import com.ganen.tax.entity.TaxTuishuiJ;
 import com.ganen.tax.entity.TaxTuishuiAll;
+import com.ganen.tax.entity.TaxTuishuiAllQfsd;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -75,6 +77,9 @@ public class ImportController {
     @Autowired
     private TaxTuishuiAllService taxTuishuiAllService;
 
+    @Autowired
+    private TaxTuishuiAllQfsdService taxTuishuiAllQfsdService;
+
     @GetMapping("/")
     public String index() {
         return "index";
@@ -93,6 +98,11 @@ public class ImportController {
     @GetMapping("/tuishui-all-query")
     public String tuishuiAllQueryPage() {
         return "tuishui-all-query";
+    }
+
+    @GetMapping("/tuishui-all-qfsd-query")
+    public String tuishuiAllQfsdQueryPage() {
+        return "tuishui-all-qfsd-query";
     }
 
     @PostMapping("/api/import/excel")
@@ -539,6 +549,103 @@ public class ImportController {
         return Result.success(progress);
     }
 
+    // ========== 退税全量名单（区分税地） ==========
+
+    @PostMapping("/api/tuishui-all-qfsd/calculate")
+    @ResponseBody
+    public Result<String> calculateTuishuiAllQfsd() {
+        try {
+            String taskId = taxTuishuiAllQfsdService.startCalculate();
+            return Result.success("计算任务已启动", taskId);
+        } catch (Exception e) {
+            return Result.error("启动计算失败：" + e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/tuishui-all-qfsd/query")
+    @ResponseBody
+    public Result<PageResult<TaxTuishuiAllQfsd>> queryTuishuiAllQfsdList(@RequestBody(required = false) TaxQueryRequest request) {
+        try {
+            return Result.success(taxTuishuiAllQfsdService.queryAllList(request));
+        } catch (Exception e) {
+            return Result.error("查询失败：" + e.getMessage());
+        }
+    }
+
+    @PostMapping("/api/tuishui-all-qfsd/export")
+    public void exportTuishuiAllQfsdList(@RequestParam(value = "userName", required = false) String userName,
+                                          @RequestParam(value = "idCard", required = false) String idCard,
+                                          HttpServletResponse response) {
+        Workbook workbook = new XSSFWorkbook();
+        try {
+            TaxQueryRequest request = new TaxQueryRequest();
+            request.setUserName(userName);
+            request.setIdCard(idCard);
+            List<TaxTuishuiAllQfsd> list = taxTuishuiAllQfsdService.queryAllListForExport(request);
+            Sheet sheet = workbook.createSheet("退税全量名单（区分税地）");
+
+            String[] headers = {"姓名", "身份证号", "联系电话", "预扣金额", "实缴金额", "（预扣-实缴）金额", "涉及税地", "涉及商户", "涉及渠道", "涉及销售", "涉及客服"};
+            Row headerRow = sheet.createRow(0);
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerStyle.setFont(headerFont);
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            for (int i = 0; i < list.size(); i++) {
+                TaxTuishuiAllQfsd item = list.get(i);
+                Row row = sheet.createRow(i + 1);
+                row.createCell(0).setCellValue(nullToEmpty(item.getUserName()));
+                row.createCell(1).setCellValue(nullToEmpty(item.getIdCard()));
+                row.createCell(2).setCellValue(nullToEmpty(item.getPhone()));
+                row.createCell(3).setCellValue(formatNumber(item.getPreDeduct()));
+                row.createCell(4).setCellValue(formatNumber(item.getActualPay()));
+                row.createCell(5).setCellValue(formatNumber(item.getDiffAmount()));
+                row.createCell(6).setCellValue(nullToEmpty(item.getTaxArea()));
+                row.createCell(7).setCellValue(nullToEmpty(item.getMerchant()));
+                row.createCell(8).setCellValue(nullToEmpty(item.getChannel()));
+                row.createCell(9).setCellValue(nullToEmpty(item.getSale()));
+                row.createCell(10).setCellValue(nullToEmpty(item.getCustomerService()));
+            }
+
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            String fileName = URLEncoder.encode("退税全量名单（区分税地）", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + fileName + ".xlsx");
+
+            try (OutputStream os = response.getOutputStream()) {
+                workbook.write(os);
+                os.flush();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        } finally {
+            try {
+                workbook.close();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    @GetMapping("/api/tuishui-all-qfsd/progress/{taskId}")
+    @ResponseBody
+    public Result<ImportProgress> getTuishuiAllQfsdProgress(@PathVariable String taskId) {
+        ImportProgress progress = taxTuishuiAllQfsdService.getProgress(taskId);
+        if (progress == null) {
+            return Result.error("任务不存在");
+        }
+        return Result.success(progress);
+    }
+
     @GetMapping("/api/import/progress/{taskId}")
     @ResponseBody
     public Result<ImportProgress> getProgress(@PathVariable String taskId) {
@@ -551,6 +658,9 @@ public class ImportController {
         }
         if (progress == null) {
             progress = taxTuishuiAllService.getProgress(taskId);
+        }
+        if (progress == null) {
+            progress = taxTuishuiAllQfsdService.getProgress(taskId);
         }
         if (progress == null) {
             return Result.error("任务不存在");

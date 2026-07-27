@@ -463,9 +463,46 @@
                 </div>
             </div>
             <div class="message" id="message8"></div>
+
+            <!-- 退税全量名单（区分税地） -->
+            <div class="import-card">
+                <div class="import-info">
+                    <h3>退税全量名单（区分税地）</h3>
+                    <p>按 id_card + 税地 分组计算，同一人在不同税地的数据拆分为多条记录（异步分批处理）</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" id="tuishuiAllQfsdCalcBtn" onclick="calculateTuishuiAllQfsd()">
+                        计算退税全量名单（区分税地）
+                    </button>
+                    <button class="btn btn-primary" onclick="openTuishuiAllQfsdQueryPage()">
+                        查询退税全量名单（区分税地）
+                    </button>
+                </div>
+            </div>
+            <div class="progress-container" id="progress10">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill10"></div>
+                </div>
+                <div class="progress-text" id="progressText10">计算中...</div>
+                <div class="stats" id="stats10" style="display: none;">
+                    <div class="stat-item">
+                        <div class="label">已处理</div>
+                        <div class="value" id="processed10">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">成功</div>
+                        <div class="value" id="success10">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">失败</div>
+                        <div class="value" id="fail10">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="message" id="message10"></div>
         </div>
     </div>
-    
+
     <script>
         function selectFile(inputId) {
             document.getElementById(inputId).click();
@@ -1276,6 +1313,110 @@
 
         function openTuishuiAllQueryPage() {
             window.open('/tuishui-all-query', '_blank');
+        }
+
+        // ========== 退税全量名单（区分税地） ==========
+
+        function calculateTuishuiAllQfsd() {
+            const progressContainer = document.getElementById('progress10');
+            const progressFill = document.getElementById('progressFill10');
+            const progressText = document.getElementById('progressText10');
+            const stats = document.getElementById('stats10');
+            const message = document.getElementById('message10');
+            const btn = document.getElementById('tuishuiAllQfsdCalcBtn');
+
+            progressContainer.style.display = 'block';
+            stats.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressText.textContent = '正在启动计算...';
+            message.style.display = 'none';
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>计算中...';
+
+            fetch('/api/tuishui-all-qfsd/calculate', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const taskId = data.data;
+                        stats.style.display = 'flex';
+                        progressText.textContent = '正在计算...';
+                        message.className = 'message info';
+                        message.textContent = '计算任务已启动，正在后台分批处理数据...';
+                        message.style.display = 'block';
+
+                        pollTuishuiAllQfsdProgress(taskId, btn, progressFill, progressText, message);
+                    } else {
+                        progressContainer.style.display = 'none';
+                        btn.disabled = false;
+                        btn.innerHTML = '计算退税全量名单（区分税地）';
+                        message.className = 'message error';
+                        message.textContent = '启动失败：' + data.message;
+                        message.style.display = 'block';
+                    }
+                })
+                .catch(function() {
+                    progressContainer.style.display = 'none';
+                    btn.disabled = false;
+                    btn.innerHTML = '计算退税全量名单（区分税地）';
+                    message.className = 'message error';
+                    message.textContent = '启动失败：网络错误';
+                    message.style.display = 'block';
+                });
+        }
+
+        function pollTuishuiAllQfsdProgress(taskId, btn, progressFill, progressText, message) {
+            const processedEl = document.getElementById('processed10');
+            const successEl = document.getElementById('success10');
+            const failEl = document.getElementById('fail10');
+
+            const interval = setInterval(function() {
+                fetch('/api/tuishui-all-qfsd/progress/' + taskId)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const progress = data.data;
+
+                            processedEl.textContent = progress.processedRows;
+                            successEl.textContent = progress.successCount;
+                            failEl.textContent = progress.failCount;
+
+                            if (progress.totalRows > 0) {
+                                const percent = Math.round((progress.processedRows / progress.totalRows) * 100);
+                                progressFill.style.width = percent + '%';
+                            }
+
+                            progressText.textContent = progress.message;
+
+                            if (progress.status === 'completed') {
+                                clearInterval(interval);
+                                btn.disabled = false;
+                                btn.innerHTML = '计算退税全量名单（区分税地）';
+                                message.className = 'message success';
+                                message.textContent = progress.message;
+                                message.style.display = 'block';
+                            } else if (progress.status === 'error') {
+                                clearInterval(interval);
+                                btn.disabled = false;
+                                btn.innerHTML = '计算退税全量名单（区分税地）';
+                                message.className = 'message error';
+                                message.textContent = progress.message;
+                                message.style.display = 'block';
+                            }
+                        } else {
+                            clearInterval(interval);
+                            btn.disabled = false;
+                            btn.innerHTML = '计算退税全量名单（区分税地）';
+                            message.className = 'message error';
+                            message.textContent = '获取进度失败：' + data.message;
+                            message.style.display = 'block';
+                        }
+                    })
+                    .catch(function() {});
+            }, 2000);
+        }
+
+        function openTuishuiAllQfsdQueryPage() {
+            window.open('/tuishui-all-qfsd-query', '_blank');
         }
     </script>
 </body>

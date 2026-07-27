@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ganen.tax.mapper.TaxTuishuiAllQfsdMapper">
+
+    <!-- 清空表 -->
+    <update id="truncateTable">
+        TRUNCATE TABLE tax_tuishui_all_qfsd
+    </update>
+
+    <!-- 分页获取 v_yukou_all 中去重后的身份证号（用于分批处理） -->
+    <select id="selectDistinctIdCards" resultType="string">
+        SELECT DISTINCT id_card
+        FROM v_yukou_all
+        WHERE id_card IS NOT NULL AND id_card != ''
+        ORDER BY id_card
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 根据一批身份证号，按 id_card + tax_area 分组计算并插入 -->
+    <insert id="insertBatchCompute">
+        INSERT INTO tax_tuishui_all_qfsd (user_name, id_card, phone, pre_deduct, actual_pay, diff_amount, tax_area, merchant, channel, sale, customer_service)
+        SELECT
+            MAX(vy.payee) AS user_name,
+            vy.id_card,
+            MAX(NULLIF(vy.phone, '')) AS phone,
+            COALESCE(SUM(vy.tax_amount), 0) AS pre_deduct,
+            COALESCE(MAX(yi.total_paid_amount), 0) AS actual_pay,
+            COALESCE(SUM(vy.tax_amount), 0) - COALESCE(MAX(yi.total_paid_amount), 0) AS diff_amount,
+            vy.tax_area,
+            GROUP_CONCAT(DISTINCT NULLIF(vy.merchant, '') ORDER BY vy.merchant SEPARATOR ',') AS merchant,
+            GROUP_CONCAT(DISTINCT NULLIF(vy.channel, '') ORDER BY vy.channel SEPARATOR ',') AS channel,
+            GROUP_CONCAT(DISTINCT NULLIF(vy.sale, '') ORDER BY vy.sale SEPARATOR ',') AS sale,
+            GROUP_CONCAT(DISTINCT NULLIF(vy.customer_service, '') ORDER BY vy.customer_service SEPARATOR ',') AS customer_service
+        FROM v_yukou_all vy
+        LEFT JOIN (
+            SELECT id_card, tax_area, COALESCE(SUM(paid_amount), 0) AS total_paid_amount
+            FROM yijiao_info_qfsd
+            GROUP BY id_card, tax_area
+        ) yi ON vy.id_card = yi.id_card AND vy.tax_area = yi.tax_area
+        WHERE vy.id_card IN
+        <foreach collection="idCards" item="idCard" open="(" close=")" separator=",">
+            #{idCard}
+        </foreach>
+        GROUP BY vy.id_card, vy.tax_area
+    </insert>
+
+    <!-- 补入孤儿实缴记录：只处理已知的34个税地不匹配的id_card -->
+    <insert id="insertOrphanActualPay">
+        INSERT INTO tax_tuishui_all_qfsd (user_name, id_card, phone, pre_deduct, actual_pay, diff_amount, tax_area, merchant, channel, sale, customer_service)
+        SELECT
+            MAX(yi.user_name) AS user_name,
+            yi.id_card,
+            '' AS phone,
+            0 AS pre_deduct,
+            yi.total_paid_amount AS actual_pay,
+            -yi.total_paid_amount AS diff_amount,
+            yi.tax_area,
+            '' AS merchant,
+            '' AS channel,
+            '' AS sale,
+            '' AS customer_service
+        FROM (
+            SELECT id_card, tax_area, MAX(user_name) AS user_name, COALESCE(SUM(paid_amount), 0) AS total_paid_amount
+            FROM yijiao_info_qfsd
+            GROUP BY id_card, tax_area
+        ) yi
+        LEFT JOIN v_yukou_all vy_match ON yi.id_card = vy_match.id_card AND yi.tax_area = vy_match.tax_area
+        WHERE vy_match.id_card IS NULL
+          AND yi.id_card IN
+        <foreach collection="orphanIdCards" item="idCard" open="(" close=")" separator=",">
+            #{idCard}
+        </foreach>
+        GROUP BY yi.id_card, yi.tax_area
+    </insert>
+
+    <!-- 查询条件片段 -->
+    <sql id="AllWhere">
+        <where>
+            <if test="userName != null and userName != ''">
+                AND user_name LIKE CONCAT('%', #{userName}, '%')
+            </if>
+            <if test="idCard != null and idCard != ''">
+                AND id_card LIKE CONCAT('%', #{idCard}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- 统计数量 -->
+    <select id="countAllList" resultType="long">
+        SELECT COUNT(*)
+        FROM tax_tuishui_all_qfsd
+        <include refid="AllWhere"/>
+    </select>
+
+    <!-- 分页查询 -->
+    <select id="queryAllList" resultType="com.ganen.tax.entity.TaxTuishuiAllQfsd">
+        SELECT
+            id,
+            user_name,
+            id_card,
+            phone,
+            pre_deduct,
+            actual_pay,
+            diff_amount,
+            tax_area,
+            merchant,
+            channel,
+            sale,
+            customer_service,
+            status,
+            create_time,
+            update_time
+        FROM tax_tuishui_all_qfsd
+        <include refid="AllWhere"/>
+        ORDER BY id_card, tax_area
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+</mapper>
